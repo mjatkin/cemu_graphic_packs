@@ -492,7 +492,7 @@ beq scaleInOutToCenter
 lis r10, scr_ChallengeWin_00@ha
 addi r10, r10, scr_ChallengeWin_00@l
 bla _compareString
-beq scaleInOutScreenToRightSide
+beq scaleChallengeNotificationPanes
 
 lis r10, scr_EnergyMeterDLC_00@ha
 addi r10, r10, scr_EnergyMeterDLC_00@l
@@ -2239,6 +2239,17 @@ lis r10, str_RootPane@ha
 addi r10, r10, str_RootPane@l
 bla _compareString
 beq scalePaneToRightSide
+b exitScale
+
+; The notification parts pane already has a right-aligned translation.
+; Scale and position the whole pane, including capture panes, exactly once.
+; Padding RootPane instead leaves the parts translation unscaled and clips it.
+scaleChallengeNotificationPanes:
+addi r5, r31, 0x80
+lis r10, str_Pa_ChallengeWin_00@ha
+addi r10, r10, str_Pa_ChallengeWin_00@l
+bla _compareString
+beq scalePaneAndKeepPosIf
 b exitScale
 
 scaleInOutScreenToRightSide:

@@ -534,6 +534,9 @@ str_Pa_Tips_00:
 .string "Pa_Tips_00"
 str_Pa_TipsAmiibo_00:
 .string "Pa_TipsAmiibo_00"
+; Panes from ChallengeWin_00 (right-side quest notification)
+str_Pa_ChallengeWin_00:
+.string "Pa_ChallengeWin_00"
 scr_Title_00:
 .string "Title_00"
 scr_Fade:
