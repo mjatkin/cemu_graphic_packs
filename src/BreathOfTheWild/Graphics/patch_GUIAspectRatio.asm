@@ -2755,6 +2755,576 @@ const_0:
 mapXPositionAddr:
 .int 0
 
+
+; ------------------------------------------------------------------------------------------
+; Map opening animation and late shadow sizing
+.align 4
+
+; MapFullWidth
+.align 4
+; Presentation only; stack on the map-culling correction in Graphics.
+; One effective-aspect endpoint feeds animation and shadow. Do not shrink
+; native coverage or change minimap endpoints. No presets/resources changed.
+_mapFullWidthTarget:
+.float $gameHeight * ($width/$height)
+_mapFullWidthEnabled:
+.int (($width/$height) > ($gameWidth/$gameHeight)) * (($gameHeight * ($width/$height)) > 1500) * (($ultrawideHUDMode == 1) + ($ultrawideHUDMode == 2))
+
+; Runs after the native transform store (and the existing shrine hook).
+; r27=target, r7=byte offset, r30=pane, r29=translation base,
+; r31=FLPA tag, r28=current track-offset entry. Replay lbz r8,0x44(r30).
+; Preserve scratch GPR/CR and both double-precision lanes of f0/f9.
+_mapWideAnimationHook:
+stwu r1, -0x50(r1)
+stw r0, 8(r1)
+.int 0x7C000026
+stw r0, 12(r1)
+stw r9, 16(r1)
+stw r10, 20(r1)
+stw r11, 24(r1)
+stw r12, 28(r1)
+stfd f0, 32(r1)
+stfd f9, 40(r1)
+.int 0x100004A0 ; ps_merge10 f0,f0,f0
+stfd f0, 48(r1)
+.int 0x11294CA0 ; ps_merge10 f9,f9,f9
+stfd f9, 56(r1)
+lis r10, _mapFullWidthEnabled@ha
+lwz r9, _mapFullWidthEnabled@l(r10)
+cmpwi r9, 0
+beq mapWideExit
+cmpwi r27, 8
+bne mapWideExit
+cmpwi r7, 32
+bne mapWideExit
+addi r9, r30, 0x1C
+cmpw r9, r29
+bne mapWideExit
+addi r9, r30, 0x80
+mapWideTry0:
+lwz r10, 0(r9)
+lis r11, 0x4E5F
+ori r11, r11, 0x4375
+cmpw r10, r11
+bne mapWideTry1
+lwz r10, 4(r9)
+lis r11, 0x745F
+ori r11, r11, 0x3030
+cmpw r10, r11
+bne mapWideTry1
+lbz r10, 8(r9)
+cmplwi r10, 0
+bne mapWideTry1
+lwz r9, 0x0C(r30)
+cmpwi r9, 0
+beq mapWideExit
+addi r9, r9, 0x80
+lwz r10, 0(r9)
+lis r11, 0x4E5F
+ori r11, r11, 0x496E
+cmpw r10, r11
+bne mapWideExit
+lwz r10, 4(r9)
+lis r11, 0x4F75
+ori r11, r11, 0x745F
+cmpw r10, r11
+bne mapWideExit
+lhz r10, 8(r9)
+cmplwi r10, 12336
+bne mapWideExit
+lbz r10, 10(r9)
+cmplwi r10, 0
+bne mapWideExit
+mr r9, r31
+lwz r10, 0(r9)
+lis r11, 0x464C
+ori r11, r11, 0x5041
+cmpw r10, r11
+bne mapWideExit
+lwz r9, 0(r28)
+add r9, r31, r9
+lbz r10, 1(r9)
+cmpwi r10, 8
+bne mapWideExit
+lbz r10, 2(r9)
+cmpwi r10, 2
+bne mapWideExit
+lhz r10, 4(r9)
+cmpwi r10, 2
+bne mapWideExit
+lwz r10, 8(r9)
+add r9, r9, r10
+lwz r10, 0(r9)
+lis r11, 0x0000
+ori r11, r11, 0x0000
+cmpw r10, r11
+bne mapWideExit
+lwz r10, 4(r9)
+lis r11, 0x44BB
+ori r11, r11, 0x8000
+cmpw r10, r11
+bne mapWideExit
+lwz r10, 8(r9)
+lis r11, 0x0000
+ori r11, r11, 0x0000
+cmpw r10, r11
+bne mapWideExit
+lwz r10, 12(r9)
+lis r11, 0x3F80
+ori r11, r11, 0x0000
+cmpw r10, r11
+bne mapWideExit
+lwz r10, 16(r9)
+lis r11, 0x4326
+ori r11, r11, 0x0000
+cmpw r10, r11
+bne mapWideExit
+lwz r10, 20(r9)
+lis r11, 0x0000
+ori r11, r11, 0x0000
+cmpw r10, r11
+bne mapWideExit
+lis r12, _mapWideFactors0@ha
+addi r12, r12, _mapWideFactors0@l
+b mapWideApply
+mapWideTry1:
+lwz r10, 0(r9)
+lis r11, 0x4E5F
+ori r11, r11, 0x4361
+cmpw r10, r11
+bne mapWideTry2
+lwz r10, 4(r9)
+lis r11, 0x7074
+ori r11, r11, 0x7572
+cmpw r10, r11
+bne mapWideTry2
+lwz r10, 8(r9)
+lis r11, 0x655F
+ori r11, r11, 0x3030
+cmpw r10, r11
+bne mapWideTry2
+lbz r10, 12(r9)
+cmplwi r10, 0
+bne mapWideTry2
+lwz r9, 0x0C(r30)
+cmpwi r9, 0
+beq mapWideExit
+addi r9, r9, 0x80
+lwz r10, 0(r9)
+lis r11, 0x4E5F
+ori r11, r11, 0x4375
+cmpw r10, r11
+bne mapWideExit
+lwz r10, 4(r9)
+lis r11, 0x745F
+ori r11, r11, 0x3030
+cmpw r10, r11
+bne mapWideExit
+lbz r10, 8(r9)
+cmplwi r10, 0
+bne mapWideExit
+mr r9, r31
+lwz r10, 0(r9)
+lis r11, 0x464C
+ori r11, r11, 0x5041
+cmpw r10, r11
+bne mapWideExit
+lwz r9, 0(r28)
+add r9, r31, r9
+lbz r10, 1(r9)
+cmpwi r10, 8
+bne mapWideExit
+lbz r10, 2(r9)
+cmpwi r10, 2
+bne mapWideExit
+lhz r10, 4(r9)
+cmpwi r10, 3
+bne mapWideExit
+lwz r10, 8(r9)
+add r9, r9, r10
+lwz r10, 0(r9)
+lis r11, 0x0000
+ori r11, r11, 0x0000
+cmpw r10, r11
+bne mapWideExit
+lwz r10, 4(r9)
+lis r11, 0x44BB
+ori r11, r11, 0x8000
+cmpw r10, r11
+bne mapWideExit
+lwz r10, 8(r9)
+lis r11, 0x0000
+ori r11, r11, 0x0000
+cmpw r10, r11
+bne mapWideExit
+lwz r10, 12(r9)
+lis r11, 0x3F80
+ori r11, r11, 0x0000
+cmpw r10, r11
+bne mapWideExit
+lwz r10, 16(r9)
+lis r11, 0x44BB
+ori r11, r11, 0x8000
+cmpw r10, r11
+bne mapWideExit
+lwz r10, 20(r9)
+lis r11, 0x0000
+ori r11, r11, 0x0000
+cmpw r10, r11
+bne mapWideExit
+lwz r10, 24(r9)
+lis r11, 0x3F80
+ori r11, r11, 0x0000
+cmpw r10, r11
+bne mapWideExit
+lwz r10, 28(r9)
+lis r11, 0x4340
+ori r11, r11, 0x0000
+cmpw r10, r11
+bne mapWideExit
+lwz r10, 32(r9)
+lis r11, 0x0000
+ori r11, r11, 0x0000
+cmpw r10, r11
+bne mapWideExit
+lis r12, _mapWideFactors1@ha
+addi r12, r12, _mapWideFactors1@l
+b mapWideApply
+mapWideTry2:
+lwz r10, 0(r9)
+lis r11, 0x4E5F
+ori r11, r11, 0x4375
+cmpw r10, r11
+bne mapWideTry3
+lwz r10, 4(r9)
+lis r11, 0x745F
+ori r11, r11, 0x3031
+cmpw r10, r11
+bne mapWideTry3
+lbz r10, 8(r9)
+cmplwi r10, 0
+bne mapWideTry3
+lwz r9, 0x0C(r30)
+cmpwi r9, 0
+beq mapWideExit
+addi r9, r9, 0x80
+lwz r10, 0(r9)
+lis r11, 0x4E5F
+ori r11, r11, 0x496E
+cmpw r10, r11
+bne mapWideExit
+lwz r10, 4(r9)
+lis r11, 0x4F75
+ori r11, r11, 0x745F
+cmpw r10, r11
+bne mapWideExit
+lhz r10, 8(r9)
+cmplwi r10, 12336
+bne mapWideExit
+lbz r10, 10(r9)
+cmplwi r10, 0
+bne mapWideExit
+mr r9, r31
+lwz r10, 0(r9)
+lis r11, 0x464C
+ori r11, r11, 0x5041
+cmpw r10, r11
+bne mapWideExit
+lwz r9, 0(r28)
+add r9, r31, r9
+lbz r10, 1(r9)
+cmpwi r10, 8
+bne mapWideExit
+lbz r10, 2(r9)
+cmpwi r10, 2
+bne mapWideExit
+lhz r10, 4(r9)
+cmpwi r10, 2
+bne mapWideExit
+lwz r10, 8(r9)
+add r9, r9, r10
+lwz r10, 0(r9)
+lis r11, 0x0000
+ori r11, r11, 0x0000
+cmpw r10, r11
+bne mapWideExit
+lwz r10, 4(r9)
+lis r11, 0x44BB
+ori r11, r11, 0x8000
+cmpw r10, r11
+bne mapWideExit
+lwz r10, 8(r9)
+lis r11, 0x0000
+ori r11, r11, 0x0000
+cmpw r10, r11
+bne mapWideExit
+lwz r10, 12(r9)
+lis r11, 0x3F80
+ori r11, r11, 0x0000
+cmpw r10, r11
+bne mapWideExit
+lwz r10, 16(r9)
+lis r11, 0x4352
+ori r11, r11, 0x0000
+cmpw r10, r11
+bne mapWideExit
+lwz r10, 20(r9)
+lis r11, 0x0000
+ori r11, r11, 0x0000
+cmpw r10, r11
+bne mapWideExit
+lis r12, _mapWideFactors2@ha
+addi r12, r12, _mapWideFactors2@l
+b mapWideApply
+mapWideTry3:
+lwz r10, 0(r9)
+lis r11, 0x505F
+ori r11, r11, 0x4D61
+cmpw r10, r11
+bne mapWideExit
+lwz r10, 4(r9)
+lis r11, 0x7043
+ori r11, r11, 0x6170
+cmpw r10, r11
+bne mapWideExit
+lwz r10, 8(r9)
+lis r11, 0x7475
+ori r11, r11, 0x7265
+cmpw r10, r11
+bne mapWideExit
+lwz r10, 12(r9)
+lis r11, 0x5F30
+ori r11, r11, 0x3000
+cmpw r10, r11
+bne mapWideExit
+lwz r9, 0x0C(r30)
+cmpwi r9, 0
+beq mapWideExit
+addi r9, r9, 0x80
+lwz r10, 0(r9)
+lis r11, 0x4E5F
+ori r11, r11, 0x4375
+cmpw r10, r11
+bne mapWideExit
+lwz r10, 4(r9)
+lis r11, 0x745F
+ori r11, r11, 0x3031
+cmpw r10, r11
+bne mapWideExit
+lbz r10, 8(r9)
+cmplwi r10, 0
+bne mapWideExit
+mr r9, r31
+lwz r10, 0(r9)
+lis r11, 0x464C
+ori r11, r11, 0x5041
+cmpw r10, r11
+bne mapWideExit
+lwz r9, 0(r28)
+add r9, r31, r9
+lbz r10, 1(r9)
+cmpwi r10, 8
+bne mapWideExit
+lbz r10, 2(r9)
+cmpwi r10, 2
+bne mapWideExit
+lhz r10, 4(r9)
+cmpwi r10, 3
+bne mapWideExit
+lwz r10, 8(r9)
+add r9, r9, r10
+lwz r10, 0(r9)
+lis r11, 0x0000
+ori r11, r11, 0x0000
+cmpw r10, r11
+bne mapWideExit
+lwz r10, 4(r9)
+lis r11, 0x44BB
+ori r11, r11, 0x8000
+cmpw r10, r11
+bne mapWideExit
+lwz r10, 8(r9)
+lis r11, 0x0000
+ori r11, r11, 0x0000
+cmpw r10, r11
+bne mapWideExit
+lwz r10, 12(r9)
+lis r11, 0x3F80
+ori r11, r11, 0x0000
+cmpw r10, r11
+bne mapWideExit
+lwz r10, 16(r9)
+lis r11, 0x44BB
+ori r11, r11, 0x8000
+cmpw r10, r11
+bne mapWideExit
+lwz r10, 20(r9)
+lis r11, 0x0000
+ori r11, r11, 0x0000
+cmpw r10, r11
+bne mapWideExit
+lwz r10, 24(r9)
+lis r11, 0x3F80
+ori r11, r11, 0x0000
+cmpw r10, r11
+bne mapWideExit
+lwz r10, 28(r9)
+lis r11, 0x4340
+ori r11, r11, 0x0000
+cmpw r10, r11
+bne mapWideExit
+lwz r10, 32(r9)
+lis r11, 0x0000
+ori r11, r11, 0x0000
+cmpw r10, r11
+bne mapWideExit
+lis r12, _mapWideFactors3@ha
+addi r12, r12, _mapWideFactors3@l
+b mapWideApply
+mapWideApply:
+; Native interpolator already wrote the width; do not modify f1 or any key data.
+lwz r9, 0x3C(r30)
+lwz r10, 0(r12)
+cmplw r9, r10
+ble mapWideExit
+lis r10, 0x44BB
+ori r10, r10, 0x8000
+cmplw r9, r10
+bgt mapWideExit
+beq mapWideFullEndpoint
+; Compute (T-m)/(1500-m) from the one shared endpoint, then remap
+; w' = m + (w-m)*factor. SP+64 holds a temporary factor, not global state.
+lis r10, _mapFullWidthTarget@ha
+lfs f0, _mapFullWidthTarget@l(r10)
+lfs f9, 0(r12)
+fsubs f0, f0, f9
+lfs f9, 4(r12)
+fdivs f0, f0, f9
+stfs f0, 64(r1)
+lfs f0, 0x3C(r30)
+lfs f9, 0(r12)
+fsubs f0, f0, f9
+lfs f9, 64(r1)
+fmuls f0, f0, f9
+lfs f9, 0(r12)
+fadds f0, f0, f9
+stfs f0, 0x3C(r30)
+b mapWideExit
+mapWideFullEndpoint:
+; Store the exact shared float endpoint, avoiding accumulated rounding.
+lis r10, _mapFullWidthTarget@ha
+lwz r9, _mapFullWidthTarget@l(r10)
+stw r9, 0x3C(r30)
+mapWideExit:
+lfd f0, 48(r1)
+.int 0x10000420 ; ps_merge00 f0,f0,f0
+lfd f9, 56(r1)
+.int 0x11294C20 ; ps_merge00 f9,f9,f9
+lfd f0, 32(r1)
+lfd f9, 40(r1)
+lwz r9, 16(r1)
+lwz r10, 20(r1)
+lwz r11, 24(r1)
+lwz r12, 28(r1)
+lwz r0, 12(r1)
+.int 0x7C0FF120
+lwz r0, 8(r1)
+addi r1, r1, 0x50
+; Preserve original instruction and the adjacent shrine hook.
+lbz r8, 0x44(r30)
+blr
+0x03C4629C = bla _mapWideAnimationHook
+_mapWideFactors0:
+.float 166.0
+.float 1334.0
+_mapWideFactors1:
+.float 192.0
+.float 1308.0
+_mapWideFactors2:
+.float 210.0
+.float 1290.0
+_mapWideFactors3:
+.float 192.0
+.float 1308.0
+
+; Shadow size is assigned after the early Graphics pane hook. Adjust it here,
+; after native size initialization, scoped by existing Graphics screen context.
+; No private recorder/cached pane pointer. Reuse the same-pack screen strings
+; and comparison helper. Context timing/nested construction needs validation.
+; Preserve all scratch state; replay ori r0,r0,0x10 on every path.
+_mapFullWidthShadow:
+stwu r1, -0x30(r1)
+stw r0, 8(r1)
+.int 0x7C000026
+stw r0, 12(r1)
+stw r5, 16(r1)
+stw r9, 20(r1)
+stw r10, 24(r1)
+stw r11, 28(r1)
+stw r12, 32(r1)
+mflr r0
+stw r0, 36(r1)
+lis r10, _mapFullWidthEnabled@ha
+lwz r9, _mapFullWidthEnabled@l(r10)
+cmpwi r9, 0
+beq mapShadowExit
+lis r5, copyScreenString@ha
+addi r5, r5, copyScreenString@l
+lis r10, scr_AppMap_00@ha
+addi r10, r10, scr_AppMap_00@l
+bla _compareString
+bne mapShadowExit
+addi r9, r31, 0x80
+lwz r10, 0(r9)
+lis r11, 0x575F
+ori r11, r11, 0x5368
+cmpw r10, r11
+bne mapShadowExit
+lwz r10, 4(r9)
+lis r11, 0x6164
+ori r11, r11, 0x6F77
+cmpw r10, r11
+bne mapShadowExit
+lwz r10, 8(r9)
+lis r11, 0x5F30
+ori r11, r11, 0x3000
+cmpw r10, r11
+bne mapShadowExit
+lwz r10, 0x3C(r31)
+lis r11, 0x44BB
+ori r11, r11, 0x8000
+cmpw r10, r11
+bne mapShadowExit
+lwz r10, 0x40(r31)
+lis r11, 0x4418
+cmpw r10, r11
+bne mapShadowExit
+lwz r10, 0x34(r31)
+lis r11, 0x3F80
+cmpw r10, r11
+bne mapShadowExit
+lwz r10, 0x38(r31)
+cmpw r10, r11
+bne mapShadowExit
+lis r10, _mapFullWidthTarget@ha
+lwz r9, _mapFullWidthTarget@l(r10)
+stw r9, 0x3C(r31)
+mapShadowExit:
+lwz r0, 36(r1)
+mtlr r0
+lwz r5, 16(r1)
+lwz r9, 20(r1)
+lwz r10, 24(r1)
+lwz r11, 28(r1)
+lwz r12, 32(r1)
+lwz r0, 12(r1)
+.int 0x7C0FF120
+lwz r0, 8(r1)
+addi r1, r1, 0x30
+ori r0, r0, 0x10
+blr
+0x03C49854 = bla _mapFullWidthShadow
+
 scaleMapAndStore:
 ; scale pane and move to right on initialization
 lis r10, const_AspectRatio@ha
@@ -2779,6 +3349,489 @@ addi r5, r31, 0x1C
 lis r10, mapXPositionAddr@ha
 stw r5, mapXPositionAddr@l(r10)
 b exitScale
+
+
+; ------------------------------------------------------------------------------------------
+; Full-map visibility bounds for the existing map aspect correction
+.align 4
+
+; MapCulling
+.align 4
+; Full-map culling must cover the horizontal region exposed by the Graphics
+; aspect correction. Minimap, native/narrower aspects and disabled HUD fixes
+; retain their original bounds. No map geometry or global dimensions change.
+; Native MapMgr+0x640 owns full-map/minimap state. Read it after confirming
+; manager identity; do not mirror it in a separate hook or retain pointers.
+; Native setter 0x02EA8DC0 stores r4 here before the GUI position hook runs.
+_mapCullFactor:
+.float ($width/$height)/($gameWidth/$gameHeight)
+_mapCullEnabled:
+.int (($width/$height) > ($gameWidth/$gameHeight)) * (($ultrawideHUDMode == 1) + ($ultrawideHUDMode == 2))
+
+; Late visibility: r29 manager component, native width at caller SP+0x60.
+; Preserve scratch GPRs/CR and both Espresso FPR lanes; replay lwz r3,0(r29).
+; Explicit ps_merge encodings (not supported as pack-assembler mnemonics).
+; Secondary lanes are saved as doubles to avoid narrowing their payload.
+_mapCullSize:
+stwu r1, -0x40(r1)
+stw r0, 8(r1)
+.int 0x7C000026
+stw r0, 12(r1)
+stw r9, 16(r1)
+stw r10, 20(r1)
+stw r11, 24(r1)
+stfd f0, 32(r1)
+stfd f1, 40(r1)
+.int 0x100004A0 ; ps_merge10 f0,f0,f0
+stfd f0, 48(r1)
+.int 0x10210CA0 ; ps_merge10 f1,f1,f1
+stfd f1, 56(r1)
+lis r10, _mapCullEnabled@ha
+lwz r9, _mapCullEnabled@l(r10)
+cmpwi r9, 0
+beq mapCullExit
+; Only the active singleton's tile manager, not another renderer/context.
+lis r10, 0x1047
+lwz r10, -0x6708(r10)
+cmpwi r10, 0
+beq mapCullExit
+lwz r9, 0(r29)
+cmpw r9, r10
+bne mapCullExit
+lwz r9, 0x640(r10)
+cmpwi r9, 1
+bne mapCullExit
+; Require the native base dimensions; adjust only the fresh local width.
+lis r10, 0x1053
+lwz r9, -0x43B4(r10)
+lis r0, 0x44A0
+cmpw r9, r0
+bne mapCullExit
+lwz r9, -0x43B0(r10)
+lis r0, 0x4434
+cmpw r9, r0
+bne mapCullExit
+; Positive finite width below 524288; excludes zero/negative/NaN/Inf.
+lwz r9, 0xA0(r1)
+cmplwi r9, 0
+beq mapCullExit
+lis r10, 0x4900
+cmplw r9, r10
+bge mapCullExit
+lfs f0, 0xA0(r1)
+lis r11, _mapCullFactor@ha
+lfs f1, _mapCullFactor@l(r11)
+fmuls f0, f0, f1
+stfs f0, 0xA0(r1)
+mapCullExit:
+lfd f0, 48(r1)
+.int 0x10000420 ; ps_merge00 f0,f0,f0
+lfd f1, 56(r1)
+.int 0x10210C20 ; ps_merge00 f1,f1,f1
+lfd f0, 32(r1)
+lfd f1, 40(r1)
+lwz r9, 16(r1)
+lwz r10, 20(r1)
+lwz r11, 24(r1)
+lwz r0, 12(r1)
+.int 0x7C0FF120
+lwz r0, 8(r1)
+addi r1, r1, 0x40
+lwz r3, 0(r29)
+blr
+; Earlier eligibility pass: fresh width at SP+0x58, manager component in r30.
+_mapCullLoadSize:
+stwu r1, -0x40(r1)
+stw r0, 8(r1)
+.int 0x7C000026
+stw r0, 12(r1)
+stw r9, 16(r1)
+stw r10, 20(r1)
+stw r11, 24(r1)
+stfd f0, 32(r1)
+stfd f1, 40(r1)
+.int 0x100004A0 ; ps_merge10 f0,f0,f0
+stfd f0, 48(r1)
+.int 0x10210CA0 ; ps_merge10 f1,f1,f1
+stfd f1, 56(r1)
+lis r10, _mapCullEnabled@ha
+lwz r9, _mapCullEnabled@l(r10)
+cmpwi r9, 0
+beq mapCullLoadExit
+; Only the active singleton's tile manager, not another renderer/context.
+lis r10, 0x1047
+lwz r10, -0x6708(r10)
+cmpwi r10, 0
+beq mapCullLoadExit
+lwz r9, 0(r30)
+cmpw r9, r10
+bne mapCullLoadExit
+lwz r9, 0x640(r10)
+cmpwi r9, 1
+bne mapCullLoadExit
+; Require the native base dimensions; adjust only the fresh local width.
+lis r10, 0x1053
+lwz r9, -0x43B4(r10)
+lis r0, 0x44A0
+cmpw r9, r0
+bne mapCullLoadExit
+lwz r9, -0x43B0(r10)
+lis r0, 0x4434
+cmpw r9, r0
+bne mapCullLoadExit
+; Positive finite width below 524288; excludes zero/negative/NaN/Inf.
+lwz r9, 0x98(r1)
+cmplwi r9, 0
+beq mapCullLoadExit
+lis r10, 0x4900
+cmplw r9, r10
+bge mapCullLoadExit
+lfs f0, 0x98(r1)
+lis r11, _mapCullFactor@ha
+lfs f1, _mapCullFactor@l(r11)
+fmuls f0, f0, f1
+stfs f0, 0x98(r1)
+mapCullLoadExit:
+lfd f0, 48(r1)
+.int 0x10000420 ; ps_merge00 f0,f0,f0
+lfd f1, 56(r1)
+.int 0x10210C20 ; ps_merge00 f1,f1,f1
+lfd f0, 32(r1)
+lfd f1, 40(r1)
+lwz r9, 16(r1)
+lwz r10, 20(r1)
+lwz r11, 24(r1)
+lwz r0, 12(r1)
+.int 0x7C0FF120
+lwz r0, 8(r1)
+addi r1, r1, 0x40
+lwz r3, 0(r30)
+blr
+0x02EFA710 = bla _mapCullSize
+0x02EFA058 = bla _mapCullLoadSize
+
+; Full-map labels use the rectangular path (not the minimap circle).
+; Preserve native height/center and the original f12 load on every path.
+_mapLabelRectHook:
+; Replay original native half-width load before guarded scaling.
+lfs f12, -0x658C(r7)
+stwu r1, -0x30(r1)
+stw r0, 8(r1)
+.int 0x7C000026
+stw r0, 12(r1)
+stw r9, 16(r1)
+stw r10, 20(r1)
+stfd f0, 24(r1)
+.int 0x100004A0 ; ps_merge10 f0,f0,f0
+stfd f0, 32(r1)
+lis r10, _mapCullEnabled@ha
+lwz r9, _mapCullEnabled@l(r10)
+cmpwi r9, 0
+beq mapLabelRectExit
+cmpwi r31, 0
+beq mapLabelRectExit
+lis r10, 0x1047
+lwz r9, -0x6708(r10)
+cmpw r9, r31
+bne mapLabelRectExit
+lwz r9, 0x640(r31)
+cmpwi r9, 1
+bne mapLabelRectExit
+; Require unchanged native width constant 740.0.
+lwz r9, -0x658C(r7)
+lis r10, 0x4439
+cmpw r9, r10
+bne mapLabelRectExit
+lis r10, _mapCullFactor@ha
+lfs f0, _mapCullFactor@l(r10)
+fmuls f12, f12, f0
+mapLabelRectExit:
+lfd f0, 32(r1)
+.int 0x10000420 ; ps_merge00 f0,f0,f0
+lfd f0, 24(r1)
+lwz r9, 16(r1)
+lwz r10, 20(r1)
+lwz r0, 12(r1)
+.int 0x7C0FF120
+lwz r0, 8(r1)
+addi r1, r1, 0x30
+blr
+0x02EA3FA8 = bla _mapLabelRectHook
+
+; Crossing-edge fallback: early native five-point test found no point in tile.
+; Corner/centre sampling alone misses overlapping rectangles when neither
+; contains the other's sampled points. Test interval overlap in both passes;
+; widening visibility alone cannot recover a tile rejected for eligibility.
+; r10 = current tile; r25 = tile array; r26 = native transformed corners.
+; Only zero-rotation full map. Retain original corner path for other contexts.
+_mapCullCrossEarly:
+stwu r1, -0x30(r1)
+stw r0, 8(r1)
+.int 0x7C000026
+stw r0, 12(r1)
+stw r9, 16(r1)
+stw r10, 20(r1)
+stw r11, 24(r1)
+stw r12, 28(r1)
+mflr r0
+stw r0, 32(r1)
+lis r11, _mapCullEnabled@ha
+lwz r9, _mapCullEnabled@l(r11)
+cmpwi r9, 0
+beq mapCullCrossEarlyExit
+lis r11, 0x1047
+lwz r11, -0x6708(r11)
+cmpwi r11, 0
+beq mapCullCrossEarlyExit
+lwz r12, -0x14(r25)
+cmpw r12, r11
+bne mapCullCrossEarlyExit
+lwz r12, 0x640(r11)
+cmpwi r12, 1
+bne mapCullCrossEarlyExit
+; Native full-map rotation must be +0 or -0; do not alter rotated minimaps.
+lwz r12, 0x664(r11)
+rlwinm r12, r12, 0, 1, 31
+cmpwi r12, 0
+bne mapCullCrossEarlyExit
+; Match the existing width hooks' native-dimension guard.
+lis r12, 0x1053
+lwz r9, -0x43B4(r12)
+lis r0, 0x44A0
+cmpw r9, r0
+bne mapCullCrossEarlyExit
+lwz r9, -0x43B0(r12)
+lis r0, 0x4434
+cmpw r9, r0
+bne mapCullCrossEarlyExit
+lwz r9, 0(r26)
+lwz r11, 16(r26)
+bl mapCullCompareFinite
+cmpwi r12, 2
+beq mapCullCrossEarlyExit
+cmpwi r12, 0
+bge mapCullCrossEarlyExit
+lwz r9, 4(r26)
+lwz r11, 20(r26)
+bl mapCullCompareFinite
+cmpwi r12, 2
+beq mapCullCrossEarlyExit
+cmpwi r12, 0
+bge mapCullCrossEarlyExit
+lwz r9, 8(r10)
+lwz r11, 16(r26)
+bl mapCullCompareFinite
+cmpwi r12, 2
+beq mapCullCrossEarlyExit
+cmpwi r12, 0
+bgt mapCullCrossEarlyExit
+lwz r9, 16(r10)
+lwz r11, 0(r26)
+bl mapCullCompareFinite
+cmpwi r12, 2
+beq mapCullCrossEarlyExit
+cmpwi r12, 0
+blt mapCullCrossEarlyExit
+lwz r9, 12(r10)
+lwz r11, 20(r26)
+bl mapCullCompareFinite
+cmpwi r12, 2
+beq mapCullCrossEarlyExit
+cmpwi r12, 0
+bgt mapCullCrossEarlyExit
+lwz r9, 20(r10)
+lwz r11, 4(r26)
+bl mapCullCompareFinite
+cmpwi r12, 2
+beq mapCullCrossEarlyExit
+cmpwi r12, 0
+blt mapCullCrossEarlyExit
+lwz r0, 32(r1)
+mtlr r0
+lwz r9, 16(r1)
+lwz r10, 20(r1)
+lwz r11, 24(r1)
+lwz r12, 28(r1)
+lwz r0, 12(r1)
+.int 0x7C0FF120
+lwz r0, 8(r1)
+addi r1, r1, 0x30
+b 0x02EFA2B8
+mapCullCrossEarlyExit:
+lwz r0, 32(r1)
+mtlr r0
+lwz r9, 16(r1)
+lwz r10, 20(r1)
+lwz r11, 24(r1)
+lwz r12, 28(r1)
+lwz r0, 12(r1)
+.int 0x7C0FF120
+lwz r0, 8(r1)
+addi r1, r1, 0x30
+li r5, 8
+blr
+0x02EFA300 = bla _mapCullCrossEarly
+
+; Crossing-edge fallback: late native five-point test found no point in tile.
+; Reuse native transformed corners and branch to native visibility acceptance;
+; non-overlaps and unsupported contexts continue the original corner tests.
+; r10 = current tile; r26 = tile array; r27 = native transformed corners.
+; Only zero-rotation full map. Retain original corner path for other contexts.
+_mapCullCrossLate:
+stwu r1, -0x30(r1)
+stw r0, 8(r1)
+.int 0x7C000026
+stw r0, 12(r1)
+stw r9, 16(r1)
+stw r10, 20(r1)
+stw r11, 24(r1)
+stw r12, 28(r1)
+mflr r0
+stw r0, 32(r1)
+lis r11, _mapCullEnabled@ha
+lwz r9, _mapCullEnabled@l(r11)
+cmpwi r9, 0
+beq mapCullCrossLateExit
+lis r11, 0x1047
+lwz r11, -0x6708(r11)
+cmpwi r11, 0
+beq mapCullCrossLateExit
+lwz r12, -0x14(r26)
+cmpw r12, r11
+bne mapCullCrossLateExit
+lwz r12, 0x640(r11)
+cmpwi r12, 1
+bne mapCullCrossLateExit
+; Native full-map rotation must be +0 or -0; do not alter rotated minimaps.
+lwz r12, 0x664(r11)
+rlwinm r12, r12, 0, 1, 31
+cmpwi r12, 0
+bne mapCullCrossLateExit
+; Match the existing width hooks' native-dimension guard.
+lis r12, 0x1053
+lwz r9, -0x43B4(r12)
+lis r0, 0x44A0
+cmpw r9, r0
+bne mapCullCrossLateExit
+lwz r9, -0x43B0(r12)
+lis r0, 0x4434
+cmpw r9, r0
+bne mapCullCrossLateExit
+lwz r9, 0(r27)
+lwz r11, 16(r27)
+bl mapCullCompareFinite
+cmpwi r12, 2
+beq mapCullCrossLateExit
+cmpwi r12, 0
+bge mapCullCrossLateExit
+lwz r9, 4(r27)
+lwz r11, 20(r27)
+bl mapCullCompareFinite
+cmpwi r12, 2
+beq mapCullCrossLateExit
+cmpwi r12, 0
+bge mapCullCrossLateExit
+lwz r9, 8(r10)
+lwz r11, 16(r27)
+bl mapCullCompareFinite
+cmpwi r12, 2
+beq mapCullCrossLateExit
+cmpwi r12, 0
+bgt mapCullCrossLateExit
+lwz r9, 16(r10)
+lwz r11, 0(r27)
+bl mapCullCompareFinite
+cmpwi r12, 2
+beq mapCullCrossLateExit
+cmpwi r12, 0
+blt mapCullCrossLateExit
+lwz r9, 12(r10)
+lwz r11, 20(r27)
+bl mapCullCompareFinite
+cmpwi r12, 2
+beq mapCullCrossLateExit
+cmpwi r12, 0
+bgt mapCullCrossLateExit
+lwz r9, 20(r10)
+lwz r11, 4(r27)
+bl mapCullCompareFinite
+cmpwi r12, 2
+beq mapCullCrossLateExit
+cmpwi r12, 0
+blt mapCullCrossLateExit
+lwz r0, 32(r1)
+mtlr r0
+lwz r9, 16(r1)
+lwz r10, 20(r1)
+lwz r11, 24(r1)
+lwz r12, 28(r1)
+lwz r0, 12(r1)
+.int 0x7C0FF120
+lwz r0, 8(r1)
+addi r1, r1, 0x30
+b 0x02EFA9C4
+mapCullCrossLateExit:
+lwz r0, 32(r1)
+mtlr r0
+lwz r9, 16(r1)
+lwz r10, 20(r1)
+lwz r11, 24(r1)
+lwz r12, 28(r1)
+lwz r0, 12(r1)
+.int 0x7C0FF120
+lwz r0, 8(r1)
+addi r1, r1, 0x30
+li r5, 8
+blr
+0x02EFAA14 = bla _mapCullCrossLate
+
+; Compare finite float bit patterns without touching ANY FPR/FPSCR state.
+; Inputs r9/r11; output r12=-1/0/+1, or 2 for NaN/Inf. Clobbers r0/r9/r11/CR0.
+; Canonicalize signed zero, then map IEEE floats to unsigned ordered keys.
+mapCullCompareFinite:
+lis r12, 0x7F80
+rlwinm r0, r9, 0, 1, 31
+cmplw r0, r12
+bge mapCullCompareInvalid
+cmpwi r0, 0
+bne mapCullCompareLeftNonzero
+li r9, 0
+mapCullCompareLeftNonzero:
+rlwinm r0, r11, 0, 1, 31
+cmplw r0, r12
+bge mapCullCompareInvalid
+cmpwi r0, 0
+bne mapCullCompareRightNonzero
+li r11, 0
+mapCullCompareRightNonzero:
+cmpwi r9, 0
+bge mapCullCompareLeftPositive
+nor r9, r9, r9
+b mapCullCompareLeftReady
+mapCullCompareLeftPositive:
+xoris r9, r9, 0x8000
+mapCullCompareLeftReady:
+cmpwi r11, 0
+bge mapCullCompareRightPositive
+nor r11, r11, r11
+b mapCullCompareRightReady
+mapCullCompareRightPositive:
+xoris r11, r11, 0x8000
+mapCullCompareRightReady:
+cmplw r9, r11
+blt mapCullCompareLess
+bgt mapCullCompareGreater
+li r12, 0
+blr
+mapCullCompareLess:
+li r12, -1
+blr
+mapCullCompareGreater:
+li r12, 1
+blr
+mapCullCompareInvalid:
+li r12, 2
+blr
 
 setMapPosition:
 li r4, $ultrawideHUDMode
