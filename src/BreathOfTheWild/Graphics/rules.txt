@@ -6,6 +6,7 @@ description = Allows you to change the game resolution, shadow resolution and an
 version = 7
 
 [Default]
+$camera16View:int = 1
 $width = 1280
 $height = 720
 $gameWidth = 1280
@@ -1192,3 +1193,18 @@ height = 360
 formats = 0x005
 overwriteWidth = $shadowRes * 360
 overwriteHeight = $shadowRes * 360
+
+# Camera capture aspect is corrected on wider outputs in both preview modes.
+# Styled preview needs Edge/Centered HUD and sufficient side-panel space.
+[Preset]
+name = 16:9 + Slate panels
+category = Camera View
+condition = $showUltrawideOptions == 1
+default = 1
+$camera16View:int = 1
+
+[Preset]
+name = Unchanged / ultrawide (saved photos crop preview)
+category = Camera View
+condition = $showUltrawideOptions == 1
+$camera16View:int = 0
