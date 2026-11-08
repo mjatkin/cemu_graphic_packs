@@ -1205,6 +1205,626 @@ bla _compareString
 beq scalePaneNormal
 b exitScale
 
+
+; ------------------------------------------------------------------------------------------
+; Camera heart transforms and late pane construction corrections
+.align 4
+
+; CameraHearts
+.align 4
+_cameraHeartsHeader:
+.int 0x48313654
+.int 1
+_heartBuildingMain:
+.int 0
+_heartMainRoot:
+.int 0
+_heartPadding:
+.float 640.0*(1.0-((1280.0/720.0)/($width / $height)))
+_heartForceCount:
+.int 0
+_heartShiftCount:
+.int 0
+
+_heartScreen:
+stwu r1, -0x40(r1)
+stw r0, 8(r1)
+mflr r0
+stw r0, 12(r1)
+.int 0x7C000026
+stw r0, 16(r1)
+stw r9, 20(r1)
+stw r10, 24(r1)
+stw r11, 28(r1)
+stw r12, 32(r1)
+lis r12, _heartBuildingMain@ha
+li r9, 0
+stw r9, _heartBuildingMain@l(r12)
+lwz r10, 0(r24)
+lis r11, 0x4D61
+ori r11, r11, 0x696E
+cmpw r10, r11
+bne heartScreenExit
+lwz r10, 4(r24)
+lis r11, 0x5363
+ori r11, r11, 0x7265
+cmpw r10, r11
+bne heartScreenExit
+lwz r10, 8(r24)
+lis r11, 0x656E
+ori r11, r11, 0x5F30
+cmpw r10, r11
+bne heartScreenExit
+lbz r10, 12(r24)
+cmpwi r10, 48
+bne heartScreenExit
+lbz r10, 13(r24)
+cmpwi r10, 0
+bne heartScreenExit
+li r9, 1
+stw r9, _heartBuildingMain@l(r12)
+lis r12, _heartMainRoot@ha
+li r9, 0
+stw r9, _heartMainRoot@l(r12)
+heartScreenExit:
+lwz r9, 20(r1)
+lwz r10, 24(r1)
+lwz r11, 28(r1)
+lwz r12, 32(r1)
+lwz r0, 16(r1)
+.int 0x7C0FF120
+lwz r0, 12(r1)
+mtlr r0
+lwz r0, 8(r1)
+addi r1, r1, 0x40
+mr r3, r30
+blr
+
+_heartCaptureRoot:
+stwu r1, -0x40(r1)
+stw r0, 8(r1)
+mflr r0
+stw r0, 12(r1)
+.int 0x7C000026
+stw r0, 16(r1)
+stw r9, 20(r1)
+stw r10, 24(r1)
+stw r11, 28(r1)
+stw r12, 32(r1)
+lis r12, _heartBuildingMain@ha
+lwz r9, _heartBuildingMain@l(r12)
+cmpwi r9, 0
+beq heartCaptureExit
+lis r12, _heartMainRoot@ha
+lwz r9, _heartMainRoot@l(r12)
+cmpwi r9, 0
+bne heartCaptureExit
+addi r9, r31, 0x80
+lwz r10, 0(r9)
+lis r11, 0x526F
+ori r11, r11, 0x6F74
+cmpw r10, r11
+bne heartCaptureExit
+lwz r10, 4(r9)
+lis r11, 0x5061
+ori r11, r11, 0x6E65
+cmpw r10, r11
+bne heartCaptureExit
+lbz r10, 8(r9)
+cmpwi r10, 0
+bne heartCaptureExit
+stw r31, _heartMainRoot@l(r12)
+heartCaptureExit:
+lwz r9, 20(r1)
+lwz r10, 24(r1)
+lwz r11, 28(r1)
+lwz r12, 32(r1)
+lwz r0, 16(r1)
+.int 0x7C0FF120
+lwz r0, 12(r1)
+mtlr r0
+lwz r0, 8(r1)
+addi r1, r1, 0x40
+lbz r0, 0(r28)
+blr
+
+; Current pane only; retained root pointer is compared, never dereferenced.
+; Return r9=1 only for N_State_00 -> N_All_00 -> captured MainScreen root.
+_heartMatches:
+addi r9, r28, 0x80
+lwz r10, 0(r9)
+lis r11, 0x4E5F
+ori r11, r11, 0x5374
+cmpw r10, r11
+bne heartNoMatch
+lwz r10, 4(r9)
+lis r11, 0x6174
+ori r11, r11, 0x655F
+cmpw r10, r11
+bne heartNoMatch
+lbz r10, 8(r9)
+cmpwi r10, 48
+bne heartNoMatch
+lbz r10, 9(r9)
+cmpwi r10, 48
+bne heartNoMatch
+lbz r10, 10(r9)
+cmpwi r10, 0
+bne heartNoMatch
+lwz r12, 0x0C(r28)
+cmpwi r12, 0
+beq heartNoMatch
+addi r9, r12, 0x80
+lwz r10, 0(r9)
+lis r11, 0x4E5F
+ori r11, r11, 0x416C
+cmpw r10, r11
+bne heartNoMatch
+lwz r10, 4(r9)
+lis r11, 0x6C5F
+ori r11, r11, 0x3030
+cmpw r10, r11
+bne heartNoMatch
+lbz r10, 8(r9)
+cmpwi r10, 0
+bne heartNoMatch
+lwz r9, 0x0C(r12)
+cmpwi r9, 0
+beq heartNoMatch
+lis r10, _heartMainRoot@ha
+lwz r11, _heartMainRoot@l(r10)
+cmpw r9, r11
+bne heartNoMatch
+li r9, 1
+blr
+heartNoMatch:
+li r9, 0
+blr
+
+_heartForceMatrix:
+stwu r1, -0x40(r1)
+stw r0, 8(r1)
+mflr r0
+stw r0, 12(r1)
+.int 0x7C000026
+stw r0, 16(r1)
+stw r9, 20(r1)
+stw r10, 24(r1)
+stw r11, 28(r1)
+stw r12, 32(r1)
+; Centered HUD already uses the native inset; only Edge needs cache refresh.
+li r9, $ultrawideHUDMode
+cmpwi r9, 1
+bne heartForceUnmatched
+lis r9, _cameraStyleEnabled@ha
+lwz r9, _cameraStyleEnabled@l(r9)
+cmpwi r9, 0
+beq heartForceUnmatched
+bl _heartMatches
+cmpwi r9, 0
+beq heartForceUnmatched
+; Force recomputation in BOTH modes, so exit cannot retain a shifted cache.
+li r6, 0x10
+lis r10, _heartForceCount@ha
+lwz r9, _heartForceCount@l(r10)
+addi r9, r9, 1
+stw r9, _heartForceCount@l(r10)
+b heartForceExit
+heartForceUnmatched:
+lwz r0, 8(r1)
+rlwinm r6, r0, 0, 27, 27
+heartForceExit:
+lwz r9, 20(r1)
+lwz r10, 24(r1)
+lwz r11, 28(r1)
+lwz r12, 32(r1)
+lwz r0, 16(r1)
+.int 0x7C0FF120
+lwz r0, 12(r1)
+mtlr r0
+lwz r0, 8(r1)
+addi r1, r1, 0x40
+rlwinm. r6, r6, 0, 27, 27
+blr
+
+_heartMatrixX:
+stwu r1, -0x40(r1)
+stw r0, 8(r1)
+mflr r0
+stw r0, 12(r1)
+.int 0x7C000026
+stw r0, 16(r1)
+stw r9, 20(r1)
+stw r10, 24(r1)
+stw r11, 28(r1)
+stw r12, 32(r1)
+stfd f0, 40(r1)
+lfs f29, 0x1C(r28)
+lis r10, _camera16Active@ha
+lwz r9, _camera16Active@l(r10)
+cmpwi r9, 0
+beq heartMatrixExit
+lis r10, _cameraLayoutState@ha
+lwz r9, _cameraLayoutState@l(r10)
+cmpwi r9, 2
+bne heartMatrixExit
+; Remove only the Edge anchoring displacement; preserve native Centered X.
+li r9, $ultrawideHUDMode
+cmpwi r9, 1
+bne heartMatrixExit
+bl _heartMatches
+cmpwi r9, 0
+beq heartMatrixExit
+lis r10, _heartPadding@ha
+lfs f0, _heartPadding@l(r10)
+fadds f29, f29, f0
+lis r10, _heartShiftCount@ha
+lwz r9, _heartShiftCount@l(r10)
+addi r9, r9, 1
+stw r9, _heartShiftCount@l(r10)
+heartMatrixExit:
+lfd f0, 40(r1)
+lwz r9, 20(r1)
+lwz r10, 24(r1)
+lwz r11, 28(r1)
+lwz r12, 32(r1)
+lwz r0, 16(r1)
+.int 0x7C0FF120
+lwz r0, 12(r1)
+mtlr r0
+lwz r0, 8(r1)
+addi r1, r1, 0x40
+blr
+
+; Follow existing Graphics/quest/UI hooks without replacing them.
+0x03A3EDD0 = bla _heartScreen
+0x03C4980C = bla _heartCaptureRoot
+; Matrix calculation: only force fresh evaluation, adjust temporary X register.
+0x03C4A24C = bla _heartForceMatrix
+0x03C4A3C0 = bla _heartMatrixX
+
+; CameraSidePanels
+.align 4
+_cameraGlyphRight:
+.float (360 * $width / $height - 8)
+_cameraGlyphLeft:
+.float (0 - (360 * $width / $height - 8))
+_cameraGlyphWidth:
+.float (360 * $width / $height - 656)
+
+_cameraPanelHeader:
+.int 0x43504E4C
+.int 1
+_cameraPanelChanges:
+.int 0
+_cameraPanelHook:
+stwu r1, -0x30(r1)
+stw r0, 8(r1)
+.int 0x7C000026
+stw r0, 12(r1)
+stw r9, 16(r1)
+stw r10, 20(r1)
+stw r11, 24(r1)
+stw r12, 28(r1)
+lis r9, _cameraStyleEnabled@ha
+lwz r9, _cameraStyleEnabled@l(r9)
+cmpwi r9, 0
+bne cameraPanel16Mode
+; Cemu mounts content independently of presets. Hide ONLY the fourteen added
+; P_C16Slate[L/R]_0[0..6] panes in unchanged-view mode. No native panes
+; or native glyphs are modified. Exact names including NUL; no animation
+; targets these custom panes, so constructor alpha remains zero.
+lwz r9, 0x80(r31)
+lis r10, 0x505F
+ori r10, r10, 0x4331
+cmpw r9, r10
+bne cameraPanelExit
+lwz r9, 0x84(r31)
+lis r10, 0x3653
+ori r10, r10, 0x6C61
+cmpw r9, r10
+bne cameraPanelExit
+lhz r9, 0x88(r31)
+cmpwi r9, 0x7465
+bne cameraPanelExit
+lbz r9, 0x8A(r31)
+cmpwi r9, 76
+beq cameraPanelHideSuffix
+cmpwi r9, 82
+bne cameraPanelExit
+cameraPanelHideSuffix:
+lbz r9, 0x8B(r31)
+cmpwi r9, 95
+bne cameraPanelExit
+lbz r9, 0x8C(r31)
+cmpwi r9, 48
+bne cameraPanelExit
+lbz r9, 0x8D(r31)
+cmpwi r9, 48
+blt cameraPanelExit
+cmpwi r9, 54
+bgt cameraPanelExit
+lbz r9, 0x8E(r31)
+cmpwi r9, 0
+bne cameraPanelExit
+li r9, 0
+stw r9, 8(r1)
+b cameraPanelExit
+cameraPanel16Mode:
+lis r10, _cameraUIIsCamera@ha
+lwz r9, _cameraUIIsCamera@l(r10)
+cmpwi r9, 0
+beq cameraPanelExit
+lis r10, _cameraLayoutState@ha
+lwz r9, _cameraLayoutState@l(r10)
+cmpwi r9, 2
+bne cameraPanelExit
+; Only the native 300x720, alpha-32 decorative text panes.
+lwz r9, 8(r1)
+cmpwi r9, 32
+bne cameraPanelExit
+lwz r9, 0x3C(r31)
+lis r10, 0x4396
+cmpw r9, r10
+bne cameraPanelExit
+lwz r9, 0x40(r31)
+lis r10, 0x4434
+cmpw r9, r10
+bne cameraPanelExit
+; Exact names T_DecoL_00/01 or T_DecoR_00/01, including terminator.
+lwz r9, 0x80(r31)
+lis r10, 0x545F
+ori r10, r10, 0x4465
+cmpw r9, r10
+bne cameraPanelExit
+lhz r9, 0x84(r31)
+cmpwi r9, 0x636F
+bne cameraPanelExit
+lbz r9, 0x87(r31)
+cmpwi r9, 95
+bne cameraPanelExit
+lhz r9, 0x88(r31)
+cmpwi r9, 0x3030
+beq cameraPanelSuffixValid
+cmpwi r9, 0x3031
+bne cameraPanelExit
+cameraPanelSuffixValid:
+lbz r9, 0x8A(r31)
+cmpwi r9, 0
+bne cameraPanelExit
+lbz r12, 0x86(r31)
+cmpwi r12, 76
+beq cameraPanelLeft
+cmpwi r12, 82
+bne cameraPanelExit
+lwz r9, 0x1C(r31)
+lis r10, 0x4422
+ori r10, r10, 0xC000
+cmpw r9, r10
+bne cameraPanelExit
+lis r11, _cameraGlyphRight@ha
+lwz r11, _cameraGlyphRight@l(r11)
+b cameraPanelApply
+cameraPanelLeft:
+lwz r9, 0x1C(r31)
+lis r10, 0xC422
+ori r10, r10, 0x4000
+cmpw r9, r10
+bne cameraPanelExit
+lis r11, _cameraGlyphLeft@ha
+lwz r11, _cameraGlyphLeft@l(r11)
+cameraPanelApply:
+stw r11, 0x1C(r31)
+lis r9, _cameraGlyphWidth@ha
+lwz r9, _cameraGlyphWidth@l(r9)
+stw r9, 0x3C(r31)
+; Retain native colours/font/animation; modestly increase decorative opacity.
+li r9, 80
+stw r9, 8(r1)
+lis r10, _cameraPanelChanges@ha
+lwz r9, _cameraPanelChanges@l(r10)
+addi r9, r9, 1
+stw r9, _cameraPanelChanges@l(r10)
+cameraPanelExit:
+lwz r9, 16(r1)
+lwz r10, 20(r1)
+lwz r11, 24(r1)
+lwz r12, 28(r1)
+lwz r0, 12(r1)
+.int 0x7C0FF120
+lwz r0, 8(r1)
+addi r1, r1, 0x30
+; Replay alpha assignment; next native instruction copies same alpha globally.
+stb r0, 0x45(r31)
+blr
+0x03C49810 = bla _cameraPanelHook
+
+; CameraUIFrame
+.align 4
+_cameraUIIsCamera:
+.int 0
+_cameraUIFramePart:
+.int 0
+_cameraUIRatio:
+.float (1280.0/720.0)/($width / $height)
+
+.align 4
+_cameraUIMatteHeight:
+.float 720.0
+
+
+.align 4
+_cameraUICompare:
+lbz r11, 0(r9)
+lbz r12, 0(r10)
+cmpw r11, r12
+bnelr
+cmpwi r11, 0
+beqlr
+addi r9, r9, 1
+addi r10, r10, 1
+b _cameraUICompare
+
+_cameraUIScreenHook:
+stwu r1, -0x60(r1)
+stw r0, 8(r1)
+mflr r0
+stw r0, 12(r1)
+.int 0x7C000026
+stw r0, 16(r1)
+stw r9, 20(r1)
+stw r10, 24(r1)
+stw r11, 28(r1)
+stw r12, 32(r1)
+stfd f0, 40(r1)
+stfd f9, 48(r1)
+mr r9, r24
+lis r10, scr_AppCamera_00@ha
+addi r10, r10, scr_AppCamera_00@l
+bl _cameraUICompare
+li r11, 0
+bne _cameraUIStoreScreen
+lis r11, _cameraStyleEnabled@ha
+lwz r11, _cameraStyleEnabled@l(r11)
+_cameraUIStoreScreen:
+lis r10, _cameraUIIsCamera@ha
+stw r11, _cameraUIIsCamera@l(r10)
+li r11, 0
+lis r10, _cameraUIFramePart@ha
+stw r11, _cameraUIFramePart@l(r10)
+lfd f0, 40(r1)
+lfd f9, 48(r1)
+lwz r9, 20(r1)
+lwz r10, 24(r1)
+lwz r11, 28(r1)
+lwz r12, 32(r1)
+lwz r0, 16(r1)
+.int 0x7C0FF120
+lwz r0, 12(r1)
+mtlr r0
+lwz r0, 8(r1)
+addi r1, r1, 0x60
+mtctr r12
+blr
+
+_cameraUIPaneHook:
+stwu r1, -0x60(r1)
+stw r0, 8(r1)
+mflr r0
+stw r0, 12(r1)
+.int 0x7C000026
+stw r0, 16(r1)
+stw r9, 20(r1)
+stw r10, 24(r1)
+stw r11, 28(r1)
+stw r12, 32(r1)
+stfd f0, 40(r1)
+stfd f9, 48(r1)
+bne _cameraUIOriginalFallthrough
+; Hook LR is original branch PC+4. Redirect return for original taken branch.
+lwz r9, 12(r1)
+addi r9, r9, 0x138
+stw r9, 12(r1)
+_cameraUIOriginalFallthrough:
+lis r10, _cameraUIIsCamera@ha
+lwz r11, _cameraUIIsCamera@l(r10)
+cmpwi r11, 0
+beq _cameraUIPaneExit
+lis r10, _cameraLayoutState@ha
+lwz r11, _cameraLayoutState@l(r10)
+cmpwi r11, 2
+bne _cameraUIPaneExit
+; Leave Pa_ScanningLine_00 at the native/upstream full-width scale.
+; Native bars, border artwork and controls now span the full Slate menu.
+; Keep ONLY its Pa_Deco_00 glyph subpart at the previous net scale, so
+; custom side-glyph placement remains aligned with unchanged Slate textures.
+; Do not undo upstream scaling of nested controls: their parent is no longer
+; confined. N_ModeCamera_00 / focus / capture guide are not changed here.
+addi r9, r31, 0x80
+lis r10, str_Pa_Deco_00@ha
+addi r10, r10, str_Pa_Deco_00@l
+bl _cameraUICompare
+bne _cameraUIPaneExit
+lis r10, _cameraUIRatio@ha
+lfs f9, _cameraUIRatio@l(r10)
+lfs f0, 0x34(r31)
+fmuls f0, f0, f9
+stfs f0, 0x34(r31)
+_cameraUIPaneExit:
+lfd f0, 40(r1)
+lfd f9, 48(r1)
+lwz r9, 20(r1)
+lwz r10, 24(r1)
+lwz r11, 28(r1)
+lwz r12, 32(r1)
+lwz r0, 16(r1)
+.int 0x7C0FF120
+lwz r0, 12(r1)
+mtlr r0
+lwz r0, 8(r1)
+addi r1, r1, 0x60
+blr
+
+; Linking hooks return through LR; pane hook replays original conditional flow.
+; Follow the Graphics hook; no dependency on any quest or other HUD contribution.
+0x03A3EDCC = bla _cameraUIScreenHook
+0x03C496C0 = bla _cameraUIPaneHook
+
+; Pane size is assigned AFTER the earlier scale hook. Limit this adjustment
+; to AppCamera's original 1280x608 shadow window; never touch the aiming guide.
+_cameraUIMatteHook:
+stwu r1, -0x40(r1)
+stw r0, 8(r1)
+mflr r0
+stw r0, 12(r1)
+.int 0x7C000026
+stw r0, 16(r1)
+stw r9, 20(r1)
+stw r10, 24(r1)
+stw r11, 28(r1)
+stw r12, 32(r1)
+stfd f10, 40(r1)
+; Original assignment is always made, even when guard fails.
+stfs f10, 0x40(r31)
+lis r10, _cameraUIIsCamera@ha
+lwz r9, _cameraUIIsCamera@l(r10)
+cmpwi r9, 0
+beq _cameraUIMatteExit
+lis r10, _cameraLayoutState@ha
+lwz r9, _cameraLayoutState@l(r10)
+cmpwi r9, 2
+bne _cameraUIMatteExit
+lwz r9, 0x3C(r31)
+lis r10, 0x44A0
+cmpw r9, r10
+bne _cameraUIMatteExit
+lwz r9, 0x40(r31)
+lis r10, 0x4418
+cmpw r9, r10
+bne _cameraUIMatteExit
+addi r9, r31, 0x80
+lis r10, str_W_Shadow_00@ha
+addi r10, r10, str_W_Shadow_00@l
+bl _cameraUICompare
+bne _cameraUIMatteExit
+lis r10, _cameraUIMatteHeight@ha
+lfs f10, _cameraUIMatteHeight@l(r10)
+stfs f10, 0x40(r31)
+_cameraUIMatteExit:
+lfd f10, 40(r1)
+lwz r9, 20(r1)
+lwz r10, 24(r1)
+lwz r11, 28(r1)
+lwz r12, 32(r1)
+lwz r0, 16(r1)
+.int 0x7C0FF120
+lwz r0, 12(r1)
+mtlr r0
+lwz r0, 8(r1)
+addi r1, r1, 0x40
+blr
+0x03C49808 = bla _cameraUIMatteHook
+
 scaleCameraPanes:
 lis r5, copySubPanelString@ha
 addi r5, r5, copySubPanelString@l

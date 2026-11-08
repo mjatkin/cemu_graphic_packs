@@ -352,6 +352,8 @@ str_T_Text_00_JPja:
 str_N_GuideOn_00:
 .string "N_GuideOn_00"
 ; Panes from AppCamera_00 and PaSeekPadScanningLine_00 (rune camera and camera edges)
+str_W_Shadow_00:
+.string "W_Shadow_00"
 str_N_ModeCamera_00:
 .string "N_ModeCamera_00"
 str_N_FirstOut_00:
