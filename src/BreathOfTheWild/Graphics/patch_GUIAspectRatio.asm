@@ -2747,6 +2747,106 @@ blr
 
 
 ; ------------------------------------------------------------------------------------------
+; MainScreen3D docks the bonus stamina wheel at a fixed X of -490. The two dock positions
+; (one per Y position) are globals at 0x10541D40 and 0x10541D48. Move the dock X to the
+; matching HUD position: Edge HUD keeps the native 150 unit distance from the left edge,
+; Centered HUD scales the position towards the centre. The world-following movement, Y
+; position and scale are left native. Values other than the native -490 are left alone.
+;
+; r0, r11 and cr0 are overwritten before they're read again at all four hooks.
+
+const_BonusStaminaEnabled:
+.int (($width/$height) > ($gameWidth/$gameHeight)) * (($ultrawideHUDMode == 1) + ($ultrawideHUDMode == 2))
+
+const_BonusStaminaDockX:
+.float (($ultrawideHUDMode == 1)*($gameWidth/2)-490.0)*(($gameWidth/$gameHeight)/($width/$height))-($ultrawideHUDMode == 1)*($gameWidth/2)
+
+; Distance to the dock: r3 = dock position returned by 0x02FB2668, 0x18(r1) = copy of its X
+_bonusStaminaDockDistanceX:
+lfs f0, 0x18(r1) ; original instruction
+lis r11, const_BonusStaminaEnabled@ha
+lwz r0, const_BonusStaminaEnabled@l(r11)
+cmpwi r0, 0
+beq exitBonusStaminaDockDistanceX
+lis r11, 0x1054
+ori r11, r11, 0x1D40
+subf r0, r11, r3
+cmpwi r0, 0
+beq checkBonusStaminaDockDistanceX
+cmpwi r0, 8
+bne exitBonusStaminaDockDistanceX
+checkBonusStaminaDockDistanceX:
+lwz r0, 0x18(r1)
+lis r11, 0xC3F5 ; -490.0
+cmpw r0, r11
+bne exitBonusStaminaDockDistanceX
+lis r11, const_BonusStaminaDockX@ha
+lfs f0, const_BonusStaminaDockX@l(r11)
+exitBonusStaminaDockDistanceX:
+blr
+
+; Move target: r3 = dock position returned by 0x02FB2668, r9 = its X (as an integer)
+_bonusStaminaDockTargetX:
+lwz r9, 0(r3) ; original instruction
+lis r11, const_BonusStaminaEnabled@ha
+lwz r0, const_BonusStaminaEnabled@l(r11)
+cmpwi r0, 0
+beq exitBonusStaminaDockTargetX
+lis r11, 0x1054
+ori r11, r11, 0x1D40
+subf r0, r11, r3
+cmpwi r0, 0
+beq checkBonusStaminaDockTargetX
+cmpwi r0, 8
+bne exitBonusStaminaDockTargetX
+checkBonusStaminaDockTargetX:
+lis r11, 0xC3F5 ; -490.0
+cmpw r9, r11
+bne exitBonusStaminaDockTargetX
+lis r11, const_BonusStaminaDockX@ha
+lwz r9, const_BonusStaminaDockX@l(r11)
+exitBonusStaminaDockTargetX:
+blr
+
+; "Already docked" check for the first dock position (r12 = 0x10540000 before the original instruction)
+_bonusStaminaDockCompare0:
+lfsu f10, 0x1D40(r12) ; original instruction
+lis r11, const_BonusStaminaEnabled@ha
+lwz r0, const_BonusStaminaEnabled@l(r11)
+cmpwi r0, 0
+beq exitBonusStaminaDockCompare0
+lwz r0, 0(r12)
+lis r11, 0xC3F5 ; -490.0
+cmpw r0, r11
+bne exitBonusStaminaDockCompare0
+lis r11, const_BonusStaminaDockX@ha
+lfs f10, const_BonusStaminaDockX@l(r11)
+exitBonusStaminaDockCompare0:
+blr
+
+; "Already docked" check for the second dock position (r5 = 0x10540000 before the original instruction)
+_bonusStaminaDockCompare1:
+lfsu f7, 0x1D48(r5) ; original instruction
+lis r11, const_BonusStaminaEnabled@ha
+lwz r0, const_BonusStaminaEnabled@l(r11)
+cmpwi r0, 0
+beq exitBonusStaminaDockCompare1
+lwz r0, 0(r5)
+lis r11, 0xC3F5 ; -490.0
+cmpw r0, r11
+bne exitBonusStaminaDockCompare1
+lis r11, const_BonusStaminaDockX@ha
+lfs f7, const_BonusStaminaDockX@l(r11)
+exitBonusStaminaDockCompare1:
+blr
+
+0x02FB295C = bla _bonusStaminaDockDistanceX
+0x02FB29C8 = bla _bonusStaminaDockTargetX
+0x02FB2AC0 = bla _bonusStaminaDockCompare0
+0x02FB2AF8 = bla _bonusStaminaDockCompare1
+
+
+; ------------------------------------------------------------------------------------------
 ; Specific code required for switching the positions of the minimap and the AppMap
 
 const_0:
