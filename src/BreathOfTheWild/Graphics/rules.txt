@@ -15,6 +15,7 @@ $aspectRatioHeight = 9
 $showUltrawideOptions:int = 0
 $showSquareHUDOption:int = 0
 $ultrawideHUDMode:int = 0
+$camera16View:int = 1
 $fxaa:int = 1
 $shadowRes = 1
 $subPix:int = 1.0
@@ -504,6 +505,23 @@ name = No HUD Fixes (stretched HUD)
 condition = $showUltrawideOptions == 1
 category = Ultrawide HUD Mode
 $ultrawideHUDMode:int = 0
+
+# Camera View Options
+# Photos are saved without stretching with both options. The 16:9 preview needs Edge or
+# Centered HUD and a screen that's wide enough for the side panels.
+
+[Preset]
+name = 16:9 preview with Sheikah Slate side panels (Default)
+category = Camera View
+condition = $showUltrawideOptions == 1
+default = 1
+$camera16View:int = 1
+
+[Preset]
+name = Full ultrawide preview (photos are cropped)
+category = Camera View
+condition = $showUltrawideOptions == 1
+$camera16View:int = 0
 
 # Square HUD Mode Options
 
