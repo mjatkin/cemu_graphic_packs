@@ -301,6 +301,8 @@ str_N_MiniMap_00:
 str_Pa_MapOpen_00:
 .string "Pa_MapOpen_00"
 ; Panes from AppMapDungeon_00 (dungeon map)
+str_N_MiniMapPos_00:
+.string "N_MiniMapPos_00"
 
 ; Panes from OptionWindow_00 (settings menu)
 str_N_Option_00:
