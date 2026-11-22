@@ -2780,6 +2780,325 @@ lis r10, mapXPositionAddr@ha
 stw r5, mapXPositionAddr@l(r10)
 b exitScale
 
+
+; ------------------------------------------------------------------------------------------
+; The full map (not the minimap) only draws the terrain tiles and labels that fall inside a
+; 1280x720 visible area. With the HUD fixes the full map is shown wider than that, so tiles
+; and labels near the left and right edges were culled while still on screen. Widen the
+; visible area by the aspect ratio difference, for the full map only.
+;
+; 0x104698F8 = map manager singleton: +0x640 is 1 while the full map is open, +0x664 is the
+; map rotation. 0x1052BC4C/0x1052BC50 = the 1280x720 base size, checked so that nothing is
+; changed if another pack already changed it.
+
+const_MapCullFactor:
+.float ($width/$height)/($gameWidth/$gameHeight)
+
+const_MapCullEnabled:
+.int (($width/$height) > ($gameWidth/$gameHeight)) * (($ultrawideHUDMode == 1) + ($ultrawideHUDMode == 2))
+
+; Visible width used for the later pass that picks the tiles to draw: r29 = map manager component, 0x60(r1) = width
+; r0, r11, r12, cr0, f0 and f9 are free here.
+_mapCullDrawWidth:
+lis r11, const_MapCullEnabled@ha
+lwz r0, const_MapCullEnabled@l(r11)
+cmpwi r0, 0
+beq exitMapCullDrawWidth
+lis r11, 0x1047
+lwz r11, -0x6708(r11)
+cmpwi r11, 0
+beq exitMapCullDrawWidth
+lwz r12, 0(r29)
+cmpw r12, r11
+bne exitMapCullDrawWidth
+lwz r12, 0x640(r11)
+cmpwi r12, 1
+bne exitMapCullDrawWidth
+lis r11, 0x1053
+lwz r12, -0x43B4(r11)
+lis r0, 0x44A0 ; 1280.0
+cmpw r12, r0
+bne exitMapCullDrawWidth
+lwz r12, -0x43B0(r11)
+lis r0, 0x4434 ; 720.0
+cmpw r12, r0
+bne exitMapCullDrawWidth
+; Only positive, finite widths below 524288.0 (also excludes zero, NaN and infinity)
+lwz r12, 0x60(r1)
+cmplwi r12, 0
+beq exitMapCullDrawWidth
+lis r0, 0x4900
+cmplw r12, r0
+bge exitMapCullDrawWidth
+lfs f0, 0x60(r1)
+lis r11, const_MapCullFactor@ha
+lfs f9, const_MapCullFactor@l(r11)
+fmuls f0, f0, f9
+stfs f0, 0x60(r1)
+exitMapCullDrawWidth:
+lwz r3, 0(r29) ; original instruction
+blr
+
+; Same for the earlier pass that decides which tiles are eligible: r30 = map manager component,
+; 0x58(r1) = width. r0, r11, r12, cr0, f0 and f9 are free here.
+_mapCullLoadWidth:
+lis r11, const_MapCullEnabled@ha
+lwz r0, const_MapCullEnabled@l(r11)
+cmpwi r0, 0
+beq exitMapCullLoadWidth
+lis r11, 0x1047
+lwz r11, -0x6708(r11)
+cmpwi r11, 0
+beq exitMapCullLoadWidth
+lwz r12, 0(r30)
+cmpw r12, r11
+bne exitMapCullLoadWidth
+lwz r12, 0x640(r11)
+cmpwi r12, 1
+bne exitMapCullLoadWidth
+lis r11, 0x1053
+lwz r12, -0x43B4(r11)
+lis r0, 0x44A0 ; 1280.0
+cmpw r12, r0
+bne exitMapCullLoadWidth
+lwz r12, -0x43B0(r11)
+lis r0, 0x4434 ; 720.0
+cmpw r12, r0
+bne exitMapCullLoadWidth
+; Only positive, finite widths below 524288.0 (also excludes zero, NaN and infinity)
+lwz r12, 0x58(r1)
+cmplwi r12, 0
+beq exitMapCullLoadWidth
+lis r0, 0x4900
+cmplw r12, r0
+bge exitMapCullLoadWidth
+lfs f0, 0x58(r1)
+lis r11, const_MapCullFactor@ha
+lfs f9, const_MapCullFactor@l(r11)
+fmuls f0, f0, f9
+stfs f0, 0x58(r1)
+exitMapCullLoadWidth:
+lwz r3, 0(r30) ; original instruction
+blr
+
+0x02EFA710 = bla _mapCullDrawWidth
+0x02EFA058 = bla _mapCullLoadWidth
+
+; Labels on the full map use a rectangle with a half width of 740.0 (the minimap uses a
+; circle instead). r31 = map manager, f12 = half width. Only r0, r12, cr0 and f0 are free here:
+; the game keeps a pointer in r11 across the next two calls (it knows they don't change it).
+_mapCullLabelWidth:
+lfs f12, -0x658C(r7) ; original instruction
+lis r12, const_MapCullEnabled@ha
+lwz r0, const_MapCullEnabled@l(r12)
+cmpwi r0, 0
+beq exitMapCullLabelWidth
+cmpwi r31, 0
+beq exitMapCullLabelWidth
+lis r12, 0x1047
+lwz r12, -0x6708(r12)
+cmpw r12, r31
+bne exitMapCullLabelWidth
+lwz r12, 0x640(r31)
+cmpwi r12, 1
+bne exitMapCullLabelWidth
+lwz r12, -0x658C(r7)
+lis r0, 0x4439 ; 740.0
+cmpw r12, r0
+bne exitMapCullLabelWidth
+lis r12, const_MapCullFactor@ha
+lfs f0, const_MapCullFactor@l(r12)
+fmuls f12, f12, f0
+exitMapCullLabelWidth:
+blr
+
+0x02EA3FA8 = bla _mapCullLabelWidth
+
+; A tile is drawn if one of its five sample points (corners and centre) is inside the visible
+; area or the other way around. Tiles that only partly overlap the widened area, without any
+; of those points inside, were still dropped. Both culling passes call these hooks after the
+; native test found no point inside, so accept the tile if the two rectangles overlap.
+; Only for the unrotated full map; everything else continues with the native tests.
+; r10 = tile (min X/Y at +0x08/+0x0C, max X/Y at +0x10/+0x14), visible area min X/Y at +0x00/+0x04
+; and max X/Y at +0x10/+0x14. r6, r11, r12, cr0, f0 and f9-f12 are free at both continuations.
+; r0 has to stay 1, the native "tile visible" path stores it.
+_mapCullOverlapEarly:
+lis r11, const_MapCullEnabled@ha
+lwz r12, const_MapCullEnabled@l(r11)
+cmpwi r12, 0
+beq exitMapCullOverlapEarly
+lis r11, 0x1047
+lwz r11, -0x6708(r11)
+cmpwi r11, 0
+beq exitMapCullOverlapEarly
+lwz r12, -0x14(r25) ; r25 = tile array, r26 = visible area
+cmpw r12, r11
+bne exitMapCullOverlapEarly
+lwz r12, 0x640(r11)
+cmpwi r12, 1
+bne exitMapCullOverlapEarly
+lwz r12, 0x664(r11)
+rlwinm r12, r12, 0, 1, 31 ; rotation has to be +0.0 or -0.0
+cmpwi r12, 0
+bne exitMapCullOverlapEarly
+lis r11, 0x1053
+lwz r12, -0x43B4(r11)
+lis r6, 0x44A0 ; 1280.0
+cmpw r12, r6
+bne exitMapCullOverlapEarly
+lwz r12, -0x43B0(r11)
+lis r6, 0x4434 ; 720.0
+cmpw r12, r6
+bne exitMapCullOverlapEarly
+; Don't accept tiles if any of the compared values is NaN or infinity
+lis r6, 0x7F80
+lwz r12, 0x00(r26)
+rlwinm r12, r12, 0, 1, 31
+cmplw r12, r6
+bge exitMapCullOverlapEarly
+lwz r12, 0x04(r26)
+rlwinm r12, r12, 0, 1, 31
+cmplw r12, r6
+bge exitMapCullOverlapEarly
+lwz r12, 0x10(r26)
+rlwinm r12, r12, 0, 1, 31
+cmplw r12, r6
+bge exitMapCullOverlapEarly
+lwz r12, 0x14(r26)
+rlwinm r12, r12, 0, 1, 31
+cmplw r12, r6
+bge exitMapCullOverlapEarly
+lwz r12, 0x08(r10)
+rlwinm r12, r12, 0, 1, 31
+cmplw r12, r6
+bge exitMapCullOverlapEarly
+lwz r12, 0x0C(r10)
+rlwinm r12, r12, 0, 1, 31
+cmplw r12, r6
+bge exitMapCullOverlapEarly
+lwz r12, 0x10(r10)
+rlwinm r12, r12, 0, 1, 31
+cmplw r12, r6
+bge exitMapCullOverlapEarly
+lwz r12, 0x14(r10)
+rlwinm r12, r12, 0, 1, 31
+cmplw r12, r6
+bge exitMapCullOverlapEarly
+lfs f0, 0x00(r26)
+lfs f9, 0x10(r26)
+fcmpu cr0, f0, f9
+bge exitMapCullOverlapEarly
+lfs f10, 0x04(r26)
+lfs f11, 0x14(r26)
+fcmpu cr0, f10, f11
+bge exitMapCullOverlapEarly
+lfs f12, 0x08(r10)
+fcmpu cr0, f12, f9
+bgt exitMapCullOverlapEarly
+lfs f12, 0x10(r10)
+fcmpu cr0, f12, f0
+blt exitMapCullOverlapEarly
+lfs f12, 0x0C(r10)
+fcmpu cr0, f12, f11
+bgt exitMapCullOverlapEarly
+lfs f12, 0x14(r10)
+fcmpu cr0, f12, f10
+blt exitMapCullOverlapEarly
+b 0x02EFA2B8 ; native "tile visible" path
+exitMapCullOverlapEarly:
+li r5, 8 ; original instruction
+blr
+
+_mapCullOverlapLate:
+lis r11, const_MapCullEnabled@ha
+lwz r12, const_MapCullEnabled@l(r11)
+cmpwi r12, 0
+beq exitMapCullOverlapLate
+lis r11, 0x1047
+lwz r11, -0x6708(r11)
+cmpwi r11, 0
+beq exitMapCullOverlapLate
+lwz r12, -0x14(r26) ; r26 = tile array, r27 = visible area
+cmpw r12, r11
+bne exitMapCullOverlapLate
+lwz r12, 0x640(r11)
+cmpwi r12, 1
+bne exitMapCullOverlapLate
+lwz r12, 0x664(r11)
+rlwinm r12, r12, 0, 1, 31 ; rotation has to be +0.0 or -0.0
+cmpwi r12, 0
+bne exitMapCullOverlapLate
+lis r11, 0x1053
+lwz r12, -0x43B4(r11)
+lis r6, 0x44A0 ; 1280.0
+cmpw r12, r6
+bne exitMapCullOverlapLate
+lwz r12, -0x43B0(r11)
+lis r6, 0x4434 ; 720.0
+cmpw r12, r6
+bne exitMapCullOverlapLate
+; Don't accept tiles if any of the compared values is NaN or infinity
+lis r6, 0x7F80
+lwz r12, 0x00(r27)
+rlwinm r12, r12, 0, 1, 31
+cmplw r12, r6
+bge exitMapCullOverlapLate
+lwz r12, 0x04(r27)
+rlwinm r12, r12, 0, 1, 31
+cmplw r12, r6
+bge exitMapCullOverlapLate
+lwz r12, 0x10(r27)
+rlwinm r12, r12, 0, 1, 31
+cmplw r12, r6
+bge exitMapCullOverlapLate
+lwz r12, 0x14(r27)
+rlwinm r12, r12, 0, 1, 31
+cmplw r12, r6
+bge exitMapCullOverlapLate
+lwz r12, 0x08(r10)
+rlwinm r12, r12, 0, 1, 31
+cmplw r12, r6
+bge exitMapCullOverlapLate
+lwz r12, 0x0C(r10)
+rlwinm r12, r12, 0, 1, 31
+cmplw r12, r6
+bge exitMapCullOverlapLate
+lwz r12, 0x10(r10)
+rlwinm r12, r12, 0, 1, 31
+cmplw r12, r6
+bge exitMapCullOverlapLate
+lwz r12, 0x14(r10)
+rlwinm r12, r12, 0, 1, 31
+cmplw r12, r6
+bge exitMapCullOverlapLate
+lfs f0, 0x00(r27)
+lfs f9, 0x10(r27)
+fcmpu cr0, f0, f9
+bge exitMapCullOverlapLate
+lfs f10, 0x04(r27)
+lfs f11, 0x14(r27)
+fcmpu cr0, f10, f11
+bge exitMapCullOverlapLate
+lfs f12, 0x08(r10)
+fcmpu cr0, f12, f9
+bgt exitMapCullOverlapLate
+lfs f12, 0x10(r10)
+fcmpu cr0, f12, f0
+blt exitMapCullOverlapLate
+lfs f12, 0x0C(r10)
+fcmpu cr0, f12, f11
+bgt exitMapCullOverlapLate
+lfs f12, 0x14(r10)
+fcmpu cr0, f12, f10
+blt exitMapCullOverlapLate
+b 0x02EFA9C4 ; native "tile visible" path
+exitMapCullOverlapLate:
+li r5, 8 ; original instruction
+blr
+
+0x02EFA300 = bla _mapCullOverlapEarly
+0x02EFAA14 = bla _mapCullOverlapLate
+
 setMapPosition:
 li r4, $ultrawideHUDMode
 cmpwi r4, 0
