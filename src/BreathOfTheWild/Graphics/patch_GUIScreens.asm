@@ -26,6 +26,8 @@ str_N_Capture_01:
 .string "N_Capture_01"
 str_Pa_GuideA_00:
 .string "Pa_GuideA_00"
+str_W_Shadow_00:
+.string "W_Shadow_00"
 ; Panes from Title_00
 str_N_CopyRight_00:
 .string "N_CopyRight_00"
@@ -249,6 +251,8 @@ str_P_CaptureMask_01:
 .string "P_CaptureMask_01"
 
 ; Panes from AppMap_00 (map screen and mini-map)
+str_P_MapCapture_00:
+.string "P_MapCapture_00"
 str_Black8_01:
 .string "Black8_01"
 

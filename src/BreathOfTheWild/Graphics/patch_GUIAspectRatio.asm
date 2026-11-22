@@ -3099,6 +3099,154 @@ blr
 0x02EFA300 = bla _mapCullOverlapEarly
 0x02EFAA14 = bla _mapCullOverlapLate
 
+
+; ------------------------------------------------------------------------------------------
+; AppMap_00_MiniMap animates the width of the full map's clipping and capture panes between
+; 1500 (full map) and the minimap size. On aspect ratios where the screen is wider than 1500
+; units, the full map stopped short of the screen edges. Remap the animated width so that the
+; full map reaches the full screen width W instead, keeping the minimap end unchanged:
+;   width = m + (width - m) * (W - m) / (1500 - m)   with m = the pane's minimap width
+; Only these four panes have an animated width, and only in this animation.
+
+const_MapFullWidth:
+.float $gameHeight * ($width/$height)
+
+const_MapFullWidthEnabled:
+.int (($width/$height) > ($gameWidth/$gameHeight)) * (($gameHeight * ($width/$height)) > 1500) * (($ultrawideHUDMode == 1) + ($ultrawideHUDMode == 2))
+
+; minimap width m, then (W - m) / (1500 - m)
+const_MapFullWidthCut00:
+.float 166.0
+.float (($gameHeight * ($width/$height)) - 166.0) / (1500.0 - 166.0)
+const_MapFullWidthCapture00:
+.float 192.0
+.float (($gameHeight * ($width/$height)) - 192.0) / (1500.0 - 192.0)
+const_MapFullWidthCut01:
+.float 210.0
+.float (($gameHeight * ($width/$height)) - 210.0) / (1500.0 - 210.0)
+
+; Runs right after the native animation store and _scaleSensorAnimationX (see there for the
+; registers). r0, r5, r9-r12, f0 and f9-f13 are free here, r0 keeps LR.
+_mapFullWidthAnimation:
+lbz r8, 0x44(r30) ; original instruction
+mflr r0
+lis r9, const_MapFullWidthEnabled@ha
+lwz r9, const_MapFullWidthEnabled@l(r9)
+cmpwi r9, 0
+beq exitMapFullWidthAnimation
+cmpwi r27, 8 ; width only
+bne exitMapFullWidthAnimation
+
+addi r5, r30, 0x80
+lis r10, str_N_Cut_00@ha
+addi r10, r10, str_N_Cut_00@l
+bla _compareString
+beq mapFullWidthCut00
+lis r10, str_N_Capture_00@ha
+addi r10, r10, str_N_Capture_00@l
+bla _compareString
+beq mapFullWidthCapture00
+lis r10, str_N_Cut_01@ha
+addi r10, r10, str_N_Cut_01@l
+bla _compareString
+beq mapFullWidthCut01
+lis r10, str_P_MapCapture_00@ha
+addi r10, r10, str_P_MapCapture_00@l
+bla _compareString
+beq mapFullWidthMapCapture00
+b exitMapFullWidthAnimation
+
+; f0 = m and f9 = factor are kept through _compareString, r10 = expected parent name
+mapFullWidthCut00:
+lis r10, const_MapFullWidthCut00@ha
+lfs f0, const_MapFullWidthCut00@l(r10)
+lfs f9, const_MapFullWidthCut00@l+0x4(r10)
+lis r10, str_N_InOut_00@ha
+addi r10, r10, str_N_InOut_00@l
+b checkMapFullWidthParent
+
+mapFullWidthCapture00:
+lis r10, const_MapFullWidthCapture00@ha
+lfs f0, const_MapFullWidthCapture00@l(r10)
+lfs f9, const_MapFullWidthCapture00@l+0x4(r10)
+lis r10, str_N_Cut_00@ha
+addi r10, r10, str_N_Cut_00@l
+b checkMapFullWidthParent
+
+mapFullWidthCut01:
+lis r10, const_MapFullWidthCut01@ha
+lfs f0, const_MapFullWidthCut01@l(r10)
+lfs f9, const_MapFullWidthCut01@l+0x4(r10)
+lis r10, str_N_InOut_00@ha
+addi r10, r10, str_N_InOut_00@l
+b checkMapFullWidthParent
+
+mapFullWidthMapCapture00:
+lis r10, const_MapFullWidthCapture00@ha ; same minimap width as N_Capture_00
+lfs f0, const_MapFullWidthCapture00@l(r10)
+lfs f9, const_MapFullWidthCapture00@l+0x4(r10)
+lis r10, str_N_Cut_01@ha
+addi r10, r10, str_N_Cut_01@l
+
+checkMapFullWidthParent:
+lwz r5, 0x0C(r30)
+cmpwi r5, 0
+beq exitMapFullWidthAnimation
+addi r5, r5, 0x80
+bla _compareString
+bne exitMapFullWidthAnimation
+lfs f10, 0x20(r29) ; width (r29 = &pane.translation, r7 = 8 * 4)
+fsubs f10, f10, f0
+fmuls f10, f10, f9
+fadds f10, f10, f0
+stfs f10, 0x20(r29)
+
+exitMapFullWidthAnimation:
+mtlr r0
+blr
+
+0x03C4629C = bla _mapFullWidthAnimation
+
+; AppMap_00's W_Shadow_00 (1500x608) gets its size after _scalePaneGUI already ran, so widen it
+; at the end of the same pane constructor instead. copyScreenString is the same screen name
+; _scalePaneGUI uses earlier in this function.
+; r3 and r5-r12 are free here, r6 keeps LR. r0 is the original result.
+_mapFullWidthShadow:
+ori r0, r0, 0x10 ; original instruction
+mflr r6
+lis r10, const_MapFullWidthEnabled@ha
+lwz r10, const_MapFullWidthEnabled@l(r10)
+cmpwi r10, 0
+beq exitMapFullWidthShadow
+lis r5, copyScreenString@ha
+addi r5, r5, copyScreenString@l
+lis r10, scr_AppMap_00@ha
+addi r10, r10, scr_AppMap_00@l
+bla _compareString
+bne exitMapFullWidthShadow
+addi r5, r31, 0x80
+lis r10, str_W_Shadow_00@ha
+addi r10, r10, str_W_Shadow_00@l
+bla _compareString
+bne exitMapFullWidthShadow
+lwz r10, 0x3C(r31)
+lis r11, 0x44BB
+ori r11, r11, 0x8000 ; 1500.0
+cmpw r10, r11
+bne exitMapFullWidthShadow
+lwz r10, 0x40(r31)
+lis r11, 0x4418 ; 608.0
+cmpw r10, r11
+bne exitMapFullWidthShadow
+lis r10, const_MapFullWidth@ha
+lfs f0, const_MapFullWidth@l(r10)
+stfs f0, 0x3C(r31)
+exitMapFullWidthShadow:
+mtlr r6
+blr
+
+0x03C49854 = bla _mapFullWidthShadow
+
 setMapPosition:
 li r4, $ultrawideHUDMode
 cmpwi r4, 0
